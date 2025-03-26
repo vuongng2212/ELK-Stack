@@ -1,0 +1,15 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/*.log  # Theo dõi tất cả file .log trong /var/log
+
+output.logstash:
+  hosts: ["logstash:5044"]  # Gửi tới Logstash qua cổng 5044
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat.log
+  keepfiles: 7
