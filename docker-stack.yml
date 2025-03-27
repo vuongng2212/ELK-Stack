@@ -6,7 +6,7 @@ services:
     environment:
       - discovery.type=single-node        # Chạy single-node
       - cluster.name=elk-cluster          # Tên cluster
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # Heap size 512MB, điều chỉnh nếu vps0 có RAM lớn
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # Heap size 512MB
       - "xpack.security.enabled=false"    # Tắt security để đơn giản hóa
       - bootstrap.memory_lock=true        # Khóa bộ nhớ
     ulimits:
