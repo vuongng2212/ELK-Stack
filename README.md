@@ -32,15 +32,21 @@
 
 ## Các Bước Triển Khai
 ### 1. Đăng Nhập vào vps0
-### 2. Clone repository github
+### 2. Clone repository
 ### 3. Triển Khai ELK Stack
 - Triển khai stack bằng file `docker-stack.yml` trong repository:
   - `sudo docker stack deploy -c docker-stack.yml elk_stack`
   - **Ghi chú**: `elk_stack` là tên stack, có thể thay đổi nếu muốn.
 ### 4. Kiểm Tra Trạng Thái
-`sudo docker stack ps elk_stack`
+- `sudo docker stack ps elk_stack`
 - Kiểm tra log của từng dịch vụ:
   - `sudo docker service logs elk_stack_elasticsearch`
   - `sudo docker service logs elk_stack_kibana`
   - `sudo docker service logs elk_stack_logstash`
   - `sudo docker service logs elk_stack_filebeat`
+### 5. Truy Cập Dịch Vụ
+  - **Elasticsearch**: `http://<vps0_ip>:9200`
+  - **Kibana**: `http://<vps0_ip>:5601`
+  - **Logstash**: Nhận dữ liệu từ Filebeat qua cổng `5044`
+### 5. Gỡ ELK Stack
+  - `sudo docker stack rm elk_stack`
