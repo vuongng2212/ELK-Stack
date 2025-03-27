@@ -20,3 +20,12 @@
 - `sudo docker pull elastic/kibana:8.17.4`
 - `sudo docker pull elastic/logstash:8.17.4`
 - `sudo docker pull elastic/filebeat:8.17.4`
+
+---
+
+## 3. Clone Repository
+- Tất cả file cấu hình (\`docker-stack.yml\`, \`logstash.conf\`, \`filebeat.yml\`) đã được đẩy lên GitHub. Chỉ cần clone về:
+`git clone https://github.com/vuongng2212/ELK-Stack.git`
+`cd ELK-Stack`
+
+---
