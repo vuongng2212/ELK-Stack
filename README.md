@@ -15,7 +15,7 @@
 - `elastic/logstash:8.17.4`
 - `elastic/filebeat:8.17.4`
 
-**Hoặc dùng lệnh docker pull để tải về các image trước**
+**Hoặc dùng lệnh docker pull để tải các image trước khi deploy**
 - `sudo docker pull elastic/elasticsearch:8.17.4`
 - `sudo docker pull elastic/kibana:8.17.4`
 - `sudo docker pull elastic/logstash:8.17.4`
@@ -25,7 +25,22 @@
 
 ## 3. Clone Repository
 - Tất cả file cấu hình (\`docker-stack.yml\`, \`logstash.conf\`, \`filebeat.yml\`) đã được đẩy lên GitHub. Chỉ cần clone về:
-`git clone https://github.com/vuongng2212/ELK-Stack.git`
-`cd ELK-Stack`
+  - `git clone https://github.com/vuongng2212/ELK-Stack.git`
+  - `cd ELK-Stack`
 
 ---
+
+## Các Bước Triển Khai
+### 1. Đăng Nhập vào vps0
+### 2. Clone repository github
+### 3. Triển Khai ELK Stack
+- Triển khai stack bằng file `docker-stack.yml` trong repository:
+  ```docker stack deploy -c docker-stack.yml elk_stack```
+  **Ghi chú**: `elk_stack` là tên stack, có thể thay đổi nếu muốn.
+### 4. Kiểm Tra Trạng Thái
+```docker stack ps elk_stack```
+- Kiểm tra log của từng dịch vụ:
+  ```docker service logs elk_stack_elasticsearch```
+  ```docker service logs elk_stack_kibana```
+  ```docker service logs elk_stack_logstash```
+  ```docker service logs elk_stack_filebeat```
