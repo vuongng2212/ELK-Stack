@@ -35,12 +35,12 @@
 ### 2. Clone repository github
 ### 3. Triển Khai ELK Stack
 - Triển khai stack bằng file `docker-stack.yml` trong repository:
-  ```docker stack deploy -c docker-stack.yml elk_stack```
-  **Ghi chú**: `elk_stack` là tên stack, có thể thay đổi nếu muốn.
+  - `docker stack deploy -c docker-stack.yml elk_stack`
+  - **Ghi chú**: `elk_stack` là tên stack, có thể thay đổi nếu muốn.
 ### 4. Kiểm Tra Trạng Thái
-```docker stack ps elk_stack```
+`docker stack ps elk_stack`
 - Kiểm tra log của từng dịch vụ:
-  ```docker service logs elk_stack_elasticsearch```
-  ```docker service logs elk_stack_kibana```
-  ```docker service logs elk_stack_logstash```
-  ```docker service logs elk_stack_filebeat```
+  - `docker service logs elk_stack_elasticsearch`
+  - `docker service logs elk_stack_kibana`
+  - `docker service logs elk_stack_logstash`
+  - `docker service logs elk_stack_filebeat`
