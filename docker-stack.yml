@@ -4,11 +4,19 @@ services:
   elasticsearch:
     image: elastic/elasticsearch:8.17.4
     environment:
+<<<<<<< HEAD
       - discovery.type=single-node
       - cluster.name=elk-cluster
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - "xpack.security.enabled=false"
       - bootstrap.memory_lock=true
+=======
+      - discovery.type=single-node        # Chạy single-node
+      - cluster.name=elk-cluster          # Tên cluster
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # Heap size 512MB
+      - "xpack.security.enabled=false"    # Tắt security để đơn giản hóa
+      - bootstrap.memory_lock=true        # Khóa bộ nhớ
+>>>>>>> fd763996bc91fa8c5ff650ff71daa12e14ed4c52
     ulimits:
       memlock:
         soft: -1
