@@ -29,7 +29,19 @@ Xác nhận các service worker, hasher, webui, rng đã được triển khai:
 docker service ls
 ```
 
-### 1.4. Pull images ELK Stack
+### 1.4. Kiểm tra tài nguyên của node vps0
+
+Đảm bảo vps0 có đủ tài nguyên để chạy ELK Stack:
+
+```bash
+# Kiểm tra tài nguyên CPU và RAM trên node vps0
+docker node inspect vps0 --format '{{ .Description.Resources }}'
+
+# Kiểm tra dung lượng đĩa trên node vps0
+ssh vps0 "df -h"
+```
+
+### 1.5. Pull images ELK Stack
 
 Pull các images Elastic cần thiết:
 
@@ -51,7 +63,7 @@ cd ~/elk-stack
 
 ### 2.2. Tạo file docker-stack.yml
 
-Tạo file `docker-stack.yml` với nội dung sau (chỉ bao gồm các service ELK Stack):
+Tạo file `docker-stack.yml` với nội dung sau (chỉ bao gồm các service ELK Stack). Lưu ý rằng tất cả các service ngoại trừ filebeat đều được chỉ định chạy trên node vps0 vì chỉ có node này đủ tài nguyên:
 
 ```yaml
 version: "3.8"
@@ -71,6 +83,9 @@ services:
       - "9300:9300"
     deploy:
       replicas: 1
+      placement:
+        constraints:
+          - node.hostname == vps0
       restart_policy:
         condition: on-failure
     volumes:
@@ -88,6 +103,9 @@ services:
       - "5601:5601"
     deploy:
       replicas: 1
+      placement:
+        constraints:
+          - node.hostname == vps0
       restart_policy:
         condition: on-failure
     depends_on:
@@ -102,6 +120,9 @@ services:
       - coinswarm
     deploy:
       replicas: 2
+      placement:
+        constraints:
+          - node.hostname == vps0
       restart_policy:
         condition: on-failure
     depends_on:
@@ -342,9 +363,13 @@ output {
 
 ## 3. Triển khai ELK Stack
 
-Với các file cấu hình đã chuẩn bị, triển khai ELK Stack trên hệ thống Docker Swarm:
+Với các file cấu hình đã chuẩn bị, triển khai ELK Stack trên hệ thống Docker Swarm từ node vps0:
 
 ```bash
+# Đảm bảo bạn đang thực hiện từ node vps0
+ssh vps0
+
+# Triển khai stack
 docker stack deploy -c docker-stack.yml elk
 ```
 
@@ -354,7 +379,7 @@ docker stack deploy -c docker-stack.yml elk
 # Kiểm tra tất cả các service đã triển khai
 docker service ls
 
-# Kiểm tra chi tiết từng service
+# Kiểm tra chi tiết từng service và đảm bảo chúng đang chạy trên vps0
 docker service ps elk_elasticsearch
 docker service ps elk_logstash
 docker service ps elk_kibana
@@ -417,7 +442,7 @@ http://vps0:5601
 docker service ps elk_logstash
 ```
 
-Xác nhận có 2 replica đang chạy.
+Xác nhận có 2 replica đang chạy trên vps0.
 
 ### 7.2. Kiểm tra logs từ 4 services
 
@@ -531,6 +556,23 @@ docker service logs elk_logstash
 - Cổng 5044 được mở và Logstash đang lắng nghe
 - Grok patterns phù hợp với format logs của các service
 - Kết nối được với Elasticsearch
+
+### 9.4. Vấn đề tài nguyên trên vps0
+
+Nếu vps0 bị quá tải do chạy nhiều service ELK:
+
+```bash
+# Kiểm tra sử dụng CPU và RAM
+ssh vps0 "top -b -n 1"
+
+# Kiểm tra dung lượng đĩa
+ssh vps0 "df -h"
+```
+
+Giải pháp:
+- Giảm heap size của Elasticsearch (Xms và Xmx trong ES_JAVA_OPTS)
+- Tăng tài nguyên cho vps0 nếu có thể
+- Giảm số lượng replicas của Logstash xuống 1 nếu cần thiết
 
 ## 10. Dọn dẹp
 
