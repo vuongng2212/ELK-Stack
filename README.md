@@ -2,7 +2,7 @@
 
 ## 1. Giới thiệu hệ thống
 
-Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticsearch, Logstash, Kibana) trên nền tảng Docker Swarm với 5 máy chủ (từ vps0 đến vps4). Hệ thống được thiết kế để thu thập, xử lý và trực quan hóa logs từ 4 service: rng, hasher, worker và webui.
+Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticsearch, Logstash, Kibana) trên nền tảng Docker Swarm với máy ảo đơn VirtualBox. Hệ thống được thiết kế để thu thập, xử lý và trực quan hóa logs từ 4 service: rng, hasher, worker và webui.
 
 ## 2. Mô hình triển khai
 
@@ -25,29 +25,25 @@ Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticse
 
 ### 3.1. Cài đặt Docker Swarm
 
-Khởi tạo Swarm từ máy vps0:
+Khởi tạo Swarm trên máy ảo:
 
 ```bash
-docker swarm init --advertise-addr <IP_vps0>
+docker swarm init --advertise-addr <IP_máy_ảo>
 ```
 
-Tham gia Swarm từ các máy vps1-vps4:
+### 3.2. Triển khai ELK Stack
 
-```bash
-docker swarm join --token <TOKEN> <IP_vps0>:2377
-```
-
-### 3.2. Triển khai Stack
-
-Để triển khai stack ELK trên Docker Swarm:
+#### 3.2.1 Triển khai ELK Stack qua Docker Swarm
 
 ```bash
 # Chuyển đến thư mục chứa các file cấu hình
 cd /path/to/elk-stack
 
 # Triển khai stack
-docker stack deploy -c docker-stack.yml elk
+docker stack deploy -c docker-stack.yml elk_stack
 ```
+
+Tất cả các thành phần (Elasticsearch, Logstash, Kibana và Filebeat) được cấu hình để chạy trên cùng một node và với yêu cầu tài nguyên tối thiểu phù hợp cho môi trường máy ảo.
 
 ### 3.3. Kiểm tra trạng thái các service
 
@@ -56,10 +52,10 @@ docker stack deploy -c docker-stack.yml elk
 docker service ls
 
 # Xem chi tiết service cụ thể
-docker service ps elk_elasticsearch
-docker service ps elk_logstash
-docker service ps elk_kibana
-docker service ps elk_filebeat
+docker service ps elk_stack_elasticsearch
+docker service ps elk_stack_logstash
+docker service ps elk_stack_kibana
+docker service ps elk_stack_filebeat
 ```
 
 ### 3.4. Cập nhật và xóa Stack
@@ -68,14 +64,14 @@ docker service ps elk_filebeat
 
 ```bash
 # Cập nhật stack với cấu hình mới
-docker stack deploy -c docker-stack.yml elk
+docker stack deploy -c docker-stack.yml elk_stack
 ```
 
 Để xóa stack ELK khỏi Docker Swarm:
 
 ```bash
 # Xóa toàn bộ stack ELK
-docker stack rm elk
+docker stack rm elk_stack
 
 # Kiểm tra xem stack đã được xóa chưa
 docker stack ls
@@ -85,10 +81,9 @@ docker stack ls
 
 ### 4.1. Elasticsearch
 
-Elasticsearch chạy thành công trên Docker Swarm với cấu hình:
+Elasticsearch chạy với cấu hình:
 - Single-node
-- Tên cluster: `elk-cluster`
-- Heap size: 512MB
+- Heap size: 256MB
 - Tắt security để đơn giản hóa việc triển khai
 
 #### Truy vấn dữ liệu trong Elasticsearch:
@@ -137,7 +132,7 @@ curl -X GET "http://localhost:9200/logs-*/_search?pretty" -H 'Content-Type: appl
 
 ### 4.2. Logstash
 
-Logstash chạy trên Swarm với 2 replicas để xử lý logs. Cấu hình filter cho phép:
+Logstash chạy với một replica để xử lý và lọc logs:
 - Phân loại logs theo từng service (rng, hasher, worker, webui)
 - Trích xuất thông tin quan trọng: timestamp, log level, log message
 - Đánh tag cho các log cấp độ ERROR
@@ -145,14 +140,14 @@ Logstash chạy trên Swarm với 2 replicas để xử lý logs. Cấu hình fi
 
 ### 4.3. Filebeat
 
-Filebeat được triển khai để thu thập logs từ:
-- Các file log truyền thống trong `/var/log/*.log`
+Filebeat chạy như một service trong Docker Swarm để thu thập logs từ:
 - Logs từ container Docker
-- Tự động đính kèm metadata cho Docker và Kubernetes
+- Tự động đính kèm metadata cho Docker
+- Gửi dữ liệu đến Logstash qua cổng 5044
 
 ### 4.4. Kibana
 
-Kibana chạy trên Swarm và kết nối thành công với Elasticsearch, cho phép:
+Kibana kết nối với Elasticsearch, cho phép:
 - Tạo Dashboard trực quan về logs
 - Phân tích logs theo thời gian
 - Tìm kiếm và lọc logs
@@ -162,7 +157,7 @@ Kibana chạy trên Swarm và kết nối thành công với Elasticsearch, cho 
 
 ### 5.1. Tạo Index Pattern
 
-1. Truy cập Kibana UI tại `http://<IP_vps0>:5601`
+1. Truy cập Kibana UI tại `http://<IP_máy_ảo>:5601`
 2. Vào phần "Stack Management" > "Index Patterns"
 3. Tạo index pattern mới: `logs-*`
 4. Chọn `@timestamp` làm trường thời gian
@@ -187,13 +182,13 @@ Kibana chạy trên Swarm và kết nối thành công với Elasticsearch, cho 
 
 ## 6. Kết quả và đánh giá
 
-Hệ thống ELK Stack đã được triển khai thành công trên Docker Swarm, cho phép:
+Hệ thống ELK Stack đã được triển khai thành công, cho phép:
 - Thu thập logs từ 4 service: rng, hasher, worker, webui
 - Xử lý và lọc các thông tin quan trọng từ logs
 - Lưu trữ logs có cấu trúc trong Elasticsearch
 - Trực quan hóa và phân tích logs thông qua Kibana
-- Hệ thống hoạt động ổn định và có khả năng mở rộng
+- Hệ thống được tối ưu hóa để hoạt động trên môi trường có giới hạn tài nguyên
 
 ## 7. Kết luận
 
-Việc triển khai ELK Stack trên Docker Swarm giúp tối ưu hóa việc quản lý và phân tích logs trong hệ thống phân tán. Với các công cụ này, việc giám sát, debug và phát hiện sự cố trong hệ thống trở nên dễ dàng và hiệu quả hơn.
+Việc triển khai ELK Stack trên Docker Swarm ngay cả trong môi trường giới hạn tài nguyên vẫn cho phép quản lý và phân tích logs hiệu quả. Giải pháp này phù hợp cho cả môi trường phát triển và môi trường sản xuất nhỏ.

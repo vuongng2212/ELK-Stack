@@ -2,80 +2,59 @@ version: '3.7'
 
 services:
   elasticsearch:
-    image: elastic/elasticsearch:8.17.4
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.4
     environment:
-      - discovery.type=single-node        # Chạy single-node
-      - cluster.name=elk-cluster          # Tên cluster
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # Heap size 512MB
-      - "xpack.security.enabled=false"    # Tắt security để đơn giản hóa
-      - bootstrap.memory_lock=true        # Khóa bộ nhớ
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+      - "discovery.type=single-node"
+      - "xpack.security.enabled=false"
+    ports:
+      - "9200:9200"
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     networks:
       - elk_network
-    ports:
-      - "9200:9200"
     deploy:
       placement:
         constraints:
           - node.hostname == vps0
-      replicas: 1
       resources:
         limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+          memory: 512m
       restart_policy:
         condition: on-failure
         delay: 5s
-        max_attempts: 3
-        window: 120s
 
   kibana:
-    image: elastic/kibana:8.17.4
+    image: docker.elastic.co/kibana/kibana:8.17.4
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - "xpack.security.enabled=false"
-      - "NODE_OPTIONS=--max-old-space-size=1024"
-    networks:
-      - elk_network
+      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
     ports:
       - "5601:5601"
+    networks:
+      - elk_network
     depends_on:
       - elasticsearch
     deploy:
       placement:
         constraints:
           - node.hostname == vps0
-      replicas: 1
       resources:
         limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+          memory: 256m
       restart_policy:
         condition: on-failure
         delay: 5s
-        max_attempts: 3
-        window: 180s
 
   logstash:
-    image: elastic/logstash:8.17.4
+    image: docker.elastic.co/logstash/logstash:8.17.4
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-    networks:
-      - elk_network
     ports:
       - "5044:5044"
     environment:
-      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+      - "LS_JAVA_OPTS=-Xms128m -Xmx128m"
+    networks:
+      - elk_network
     depends_on:
       - elasticsearch
     deploy:
@@ -85,43 +64,17 @@ services:
       replicas: 1
       resources:
         limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+          memory: 256m
       restart_policy:
         condition: on-failure
         delay: 5s
-        max_attempts: 3
 
   filebeat:
-    image: elastic/filebeat:8.17.4
+    image: docker.elastic.co/beats/filebeat:8.17.4
     user: root
-    entrypoint: >
-      /bin/bash -c '
-      cat > /usr/share/filebeat/filebeat.yml << EOF
-      filebeat.inputs:
-      - type: container
-        enabled: true
-        paths:
-          - /var/lib/docker/containers/*/*.log
-        processors:
-          - add_docker_metadata:
-              host: "unix:///var/run/docker.sock"
-      
-      processors:
-        - add_host_metadata: ~
-        - add_cloud_metadata: ~
-      
-      output.logstash:
-        hosts: ["logstash:5044"]
-      
-      logging.level: info
-      EOF
-      chmod go-w /usr/share/filebeat/filebeat.yml &&
-      chown root:root /usr/share/filebeat/filebeat.yml &&
-      filebeat -e -strict.perms=false
-      '
+    command: filebeat -e -strict.perms=false
     volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -135,13 +88,10 @@ services:
       replicas: 1
       resources:
         limits:
-          memory: 256M
-        reservations:
-          memory: 128M
+          memory: 128m
       restart_policy:
         condition: on-failure
         delay: 5s
-        max_attempts: 3
 
 volumes:
   elasticsearch-data:

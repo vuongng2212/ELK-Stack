@@ -7,11 +7,18 @@ filebeat.inputs:
     - add_docker_metadata:
         host: "unix:///var/run/docker.sock"
 
+# Disable strict permission checks
+filebeat.registry.flush: 5s
+filebeat.shutdown_timeout: 10s
+filebeat.ilm.enabled: false
+
 processors:
   - add_host_metadata: ~
   - add_cloud_metadata: ~
 
 output.logstash:
   hosts: ["logstash:5044"]
-
+  
 logging.level: info
+logging.to_stderr: true
+logging.metrics.enabled: false
