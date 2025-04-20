@@ -4,19 +4,11 @@ services:
   elasticsearch:
     image: elastic/elasticsearch:8.17.4
     environment:
-<<<<<<< HEAD
-      - discovery.type=single-node
-      - cluster.name=elk-cluster
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - "xpack.security.enabled=false"
-      - bootstrap.memory_lock=true
-=======
       - discovery.type=single-node        # Chạy single-node
       - cluster.name=elk-cluster          # Tên cluster
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"  # Heap size 512MB
       - "xpack.security.enabled=false"    # Tắt security để đơn giản hóa
       - bootstrap.memory_lock=true        # Khóa bộ nhớ
->>>>>>> fd763996bc91fa8c5ff650ff71daa12e14ed4c52
     ulimits:
       memlock:
         soft: -1
@@ -87,10 +79,7 @@ services:
     depends_on:
       - elasticsearch
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
-      replicas: 1
+      replicas: 2  # Tăng lên 2 replicas
       resources:
         limits:
           memory: 512M
@@ -111,10 +100,7 @@ services:
     depends_on:
       - logstash
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
-      replicas: 1
+      mode: global
       resources:
         limits:
           memory: 256M
@@ -125,35 +111,71 @@ services:
         delay: 5s
         max_attempts: 3
 
-  prometheus:
-    image: prom/prometheus:v2.54.1
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
+  # Các service để test logs
+  rng:
+    image: dockersamples/examplevotingapp_rng:before
+    networks:
+      - elk_network
+    depends_on:
+      - filebeat
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      mode: replicated
+      replicas: 2
+
+  hasher:
+    image: dockersamples/examplevotingapp_worker:latest
+    networks:
+      - elk_network
+    depends_on:
+      - filebeat
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      mode: replicated
+      replicas: 2
+      
+  worker:
+    image: dockersamples/examplevotingapp_worker:latest
+    networks:
+      - elk_network
+    depends_on:
+      - filebeat
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      mode: replicated
+      replicas: 2
+      
+  webui:
+    image: dockersamples/examplevotingapp_result:before
     networks:
       - elk_network
     ports:
-      - "9090:9090"
-    environment:
-      - TZ=Asia/Ho_Chi_Minh
+      - "5000:80"
+    depends_on:
+      - filebeat
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
+      mode: replicated
       replicas: 1
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
 
 volumes:
   elasticsearch-data:
-  prometheus-data:
 
 networks:
   elk_network:
