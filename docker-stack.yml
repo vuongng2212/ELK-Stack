@@ -61,7 +61,7 @@ services:
       placement:
         constraints:
           - node.hostname == vps0
-      replicas: 1
+      replicas: 2
       resources:
         limits:
           memory: 256m

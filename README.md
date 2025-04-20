@@ -43,6 +43,27 @@ cd /path/to/elk-stack
 docker stack deploy -c docker-stack.yml elk_stack
 ```
 
+#### 3.2.1. Về quyền root cho Filebeat
+
+Filebeat cần chạy với quyền root để có thể truy cập logs từ các container khác. Đây là phần quan trọng trong cấu hình docker-stack.yml:
+
+```yaml
+filebeat:
+  image: docker.elastic.co/beats/filebeat:8.17.4
+  user: root  # Chỉ định container chạy với quyền root
+  command: ["filebeat", "-e", "--strict.perms=false"]  # Sử dụng flag đúng cú pháp
+  volumes:
+    - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+**Lưu ý quan trọng:**
+1. Phải chỉ định `user: root` để Filebeat có quyền đọc logs
+2. Sử dụng flag `--strict.perms=false` (với hai dấu gạch ngang) để tắt kiểm tra quyền nghiêm ngặt
+3. Mount các volume cần thiết để truy cập logs và socket Docker
+4. Không cần chạy script cài đặt Filebeat trên host, mọi thứ đã được container hóa
+
 ### 3.3. Kiểm tra trạng thái các service
 
 ```bash
@@ -190,3 +211,23 @@ Hệ thống ELK Stack đã được triển khai thành công, cho phép:
 ## 7. Kết luận
 
 Việc triển khai ELK Stack trên Docker Swarm ngay cả trong môi trường giới hạn tài nguyên vẫn cho phép quản lý và phân tích logs hiệu quả. Giải pháp này phù hợp cho cả môi trường phát triển và môi trường sản xuất nhỏ.
+
+## 8. Khắc phục sự cố thường gặp
+
+### 8.1. Filebeat liên tục khởi động lại
+
+Nếu Filebeat liên tục khởi động lại với lỗi, hãy kiểm tra:
+
+1. **Đảm bảo chạy với quyền root**: Phải có dòng `user: root` trong cấu hình Filebeat
+2. **Kiểm tra cú pháp command**: Sử dụng đúng cú pháp `--strict.perms=false` (hai dấu gạch ngang)
+3. **Kiểm tra logs**: Sử dụng lệnh `docker service logs elk_stack_filebeat` để xác định lỗi
+4. **Kiểm tra quyền truy cập volume**: Đảm bảo có quyền truy cập vào `/var/lib/docker/containers` và `/var/run/docker.sock`
+
+### 8.2. Không có dữ liệu trong Elasticsearch
+
+Nếu logs không xuất hiện trong Elasticsearch:
+
+1. Kiểm tra kết nối từ Filebeat đến Logstash: `curl -v telnet://logstash:5044`
+2. Kiểm tra cấu hình output trong filebeat.yml: `output.logstash.hosts: ["logstash:5044"]`
+3. Kiểm tra logs của Logstash: `docker service logs elk_stack_logstash`
+4. Kiểm tra lọc trong Logstash: Đảm bảo filters trong logstash.conf hoạt động đúng
