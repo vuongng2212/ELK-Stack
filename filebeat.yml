@@ -24,7 +24,6 @@ processors:
 
 output.logstash:
   hosts: ["logstash:5044"]
-  loadbalance: true
   
 logging.level: debug
 logging.to_stderr: true
