@@ -62,19 +62,6 @@ services:
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.17.4
-    volumes:
-      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - elk
-      - coinswarm
-    user: root
-    deploy:
-      mode: global
-      restart_policy:
-        condition: on-failure
-    depends_on:
-      - logstash
     configs:
       - source: filebeat_config
         target: /usr/share/filebeat/filebeat.yml
@@ -86,6 +73,16 @@ services:
         source: /var/lib/docker/containers
         target: /var/lib/docker/containers
         read_only: true
+    networks:
+      - elk
+      - coinswarm
+    user: root
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      - logstash
 
 networks:
   coinswarm:
