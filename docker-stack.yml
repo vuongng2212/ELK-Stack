@@ -96,28 +96,31 @@ services:
   filebeat:
     image: elastic/filebeat:8.17.4
     user: root
-    command: bash -c 'cat > /usr/share/filebeat/filebeat.yml << EOF
-filebeat.inputs:
-- type: container
-  enabled: true
-  paths:
-    - /var/lib/docker/containers/*/*.log
-  processors:
-    - add_docker_metadata:
-        host: "unix:///var/run/docker.sock"
-
-processors:
-  - add_host_metadata: ~
-  - add_cloud_metadata: ~
-
-output.logstash:
-  hosts: ["logstash:5044"]
-
-logging.level: info
-EOF
-chmod go-w /usr/share/filebeat/filebeat.yml &&
-chown root:root /usr/share/filebeat/filebeat.yml &&
-filebeat -e -strict.perms=false'
+    entrypoint: >
+      /bin/bash -c '
+      cat > /usr/share/filebeat/filebeat.yml << EOF
+      filebeat.inputs:
+      - type: container
+        enabled: true
+        paths:
+          - /var/lib/docker/containers/*/*.log
+        processors:
+          - add_docker_metadata:
+              host: "unix:///var/run/docker.sock"
+      
+      processors:
+        - add_host_metadata: ~
+        - add_cloud_metadata: ~
+      
+      output.logstash:
+        hosts: ["logstash:5044"]
+      
+      logging.level: info
+      EOF
+      chmod go-w /usr/share/filebeat/filebeat.yml &&
+      chown root:root /usr/share/filebeat/filebeat.yml &&
+      filebeat -e -strict.perms=false
+      '
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
