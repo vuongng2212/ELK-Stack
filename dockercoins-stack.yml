@@ -1,0 +1,64 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:alpine
+    networks:
+      - coinswarm
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://192.168.186.101:5000"
+        tag: "redis"
+
+  worker:
+    image: vuongng2212/worker
+    networks:
+      - coinswarm
+    depends_on:
+      - redis
+      - rng
+      - hasher
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://192.168.186.101:5000"
+        tag: "worker"
+
+  hasher:
+    image: vuongng2212/hasher
+    networks:
+      - coinswarm
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://192.168.186.101:5000"
+        tag: "hasher"
+
+  rng:
+    image: vuongng2212/rng
+    networks:
+      - coinswarm
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://192.168.186.101:5000"
+        tag: "rng"
+
+  webui:
+    image: vuongng2212/webui
+    networks:
+      - coinswarm
+    ports:
+      - "8000:80"
+    depends_on:
+      - worker
+    logging:
+      driver: "gelf"
+      options:
+        gelf-address: "udp://192.168.186.101:5000"
+        tag: "webui"
+
+networks:
+  coinswarm:
+    external: true
