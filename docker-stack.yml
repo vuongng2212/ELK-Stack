@@ -60,6 +60,7 @@ services:
       - "LS_JAVA_OPTS=-Xms128m -Xmx128m"
     networks:
       - elk_network
+      - coinswarm
     depends_on:
       - elasticsearch
     deploy:
@@ -82,6 +83,13 @@ services:
       - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /proc:/hostfs/proc:ro
+      - /:/hostfs:ro
+    environment:
+      - DOCKER_CONTAINERS_NETWORK=coinswarm
+      - OUTPUT_LOGSTASH_HOST=elk_stack_logstash
+      - OUTPUT_LOGSTASH_PORT=5044
     networks:
       - elk_network
       - coinswarm

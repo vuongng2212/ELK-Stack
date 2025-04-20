@@ -6,6 +6,9 @@ filebeat.inputs:
   json.keys_under_root: true
   json.add_error_key: true
   json.message_key: message
+  containers.ids:
+    - "*"
+  exclude_files: []
 
 # Disable strict permission checks
 filebeat.registry.flush: 5s
@@ -21,12 +24,21 @@ processors:
   - add_cloud_metadata: ~
   - add_docker_metadata:
       host: "unix:///var/run/docker.sock"
+      networks: ["coinswarm", "elk_network", "*"]
+      labels.dedot: true
+      match_fields: ["name", "id"]
+      match_pids: ["process.pid", "process.ppid"]
+      match_source: true
+      match_source_index: 4
+      match_short_id: true
 
 output.logstash:
   hosts: ["elk_stack_logstash:5044"]
   ssl.enabled: false
   timeout: 60s
   slow_start: true
+  loadbalance: true
+  worker: 2
   
 logging.level: debug
 logging.to_stderr: true
