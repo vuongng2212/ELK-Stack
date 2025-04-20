@@ -1,9 +1,4 @@
 filebeat.inputs:
-- type: log
-  enabled: true
-  paths:
-    - /var/log/*.log  # Theo dõi tất cả file .log trong /var/log
-
 - type: container
   enabled: true
   paths:
@@ -15,15 +10,13 @@ filebeat.inputs:
         fields: ["message"]
         target: "json"
         overwrite_keys: true
-    - add_kubernetes_metadata:
-        in_cluster: true
 
 processors:
   - add_host_metadata: ~
   - add_cloud_metadata: ~
 
 output.logstash:
-  hosts: ["logstash:5044"]  # Gửi tới Logstash qua cổng 5044
+  hosts: ["logstash:5044"]
 
 logging.level: info
 logging.to_files: true
@@ -31,21 +24,3 @@ logging.files:
   path: /var/log/filebeat
   name: filebeat.log
   keepfiles: 7
-
-volumes:
-  - type: bind
-    source: /var/log
-    target: /var/log
-    read_only: true
-  - type: bind
-    source: /var/lib/docker/containers
-    target: /var/lib/docker/containers
-    read_only: true
-  - type: bind
-    source: /var/run/docker.sock
-    target: /var/run/docker.sock
-    read_only: true
-
-configs:
-  filebeat_config:
-    file: ./filebeat.yml

@@ -69,9 +69,10 @@ services:
   logstash:
     image: elastic/logstash:8.17.4
     volumes:
-      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     networks:
       - elk_network
+      - default
     ports:
       - "5044:5044"
     environment:
@@ -79,7 +80,7 @@ services:
     depends_on:
       - elasticsearch
     deploy:
-      replicas: 2  # Tăng lên 2 replicas
+      replicas: 2
       resources:
         limits:
           memory: 512M
@@ -92,11 +93,22 @@ services:
 
   filebeat:
     image: elastic/filebeat:8.17.4
+    user: root
+    configs:
+      - source: filebeat_config
+        target: /usr/share/filebeat/filebeat.yml
     volumes:
-      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml
-      - /var/log:/var/log:ro
+      - type: bind
+        source: /var/lib/docker/containers
+        target: /var/lib/docker/containers
+        read_only: true
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
     networks:
       - elk_network
+      - default
     depends_on:
       - logstash
     deploy:
@@ -111,68 +123,9 @@ services:
         delay: 5s
         max_attempts: 3
 
-  # Các service để test logs
-  rng:
-    image: dockersamples/examplevotingapp_rng:before
-    networks:
-      - elk_network
-    depends_on:
-      - filebeat
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      mode: replicated
-      replicas: 2
-
-  hasher:
-    image: dockersamples/examplevotingapp_worker:latest
-    networks:
-      - elk_network
-    depends_on:
-      - filebeat
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      mode: replicated
-      replicas: 2
-      
-  worker:
-    image: dockersamples/examplevotingapp_worker:latest
-    networks:
-      - elk_network
-    depends_on:
-      - filebeat
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      mode: replicated
-      replicas: 2
-      
-  webui:
-    image: dockersamples/examplevotingapp_result:before
-    networks:
-      - elk_network
-    ports:
-      - "5000:80"
-    depends_on:
-      - filebeat
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      mode: replicated
-      replicas: 1
+configs:
+  filebeat_config:
+    file: ./filebeat.yml
 
 volumes:
   elasticsearch-data:
@@ -180,3 +133,6 @@ volumes:
 networks:
   elk_network:
     driver: overlay
+  default:
+    external: true
+    name: ingress
