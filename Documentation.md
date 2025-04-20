@@ -2,7 +2,7 @@
 
 ## 1. Giới thiệu
 
-Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticsearch, Logstash, Kibana) trên nền tảng Docker Swarm với các máy ảo VirtualBox. Hệ thống được thiết kế để thu thập, xử lý và trực quan hóa logs từ 4 service: rng, hasher, worker và webui trong ứng dụng DockerCoins.
+Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticsearch, Logstash, Kibana) trên nền tảng Docker Swarm để thu thập, xử lý và trực quan hóa logs từ các service đã được triển khai sẵn gồm: rng, hasher, worker và webui trong ứng dụng DockerCoins.
 
 ## 2. Kiến trúc Hệ thống
 
@@ -10,7 +10,7 @@ Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticse
 
 Hệ thống gồm các thành phần chính:
 
-- **DockerCoins Services**: Các service rng, hasher, worker, webui, và redis chạy trong overlay network.
+- **Các service đã triển khai sẵn**: rng, hasher, worker, webui, và redis chạy trong overlay network coinswarm.
 - **Filebeat**: Thu thập logs từ các container của 4 service trong ứng dụng DockerCoins.
 - **Logstash**: Xử lý logs với 2 replicas, phân tích cú pháp và trích xuất thông tin quan trọng.
 - **Elasticsearch**: Lưu trữ và đánh index logs.
@@ -37,47 +37,35 @@ Hệ thống gồm các thành phần chính:
 
 ### 3.1. Chuẩn bị môi trường
 
-#### 3.1.1. Cấu hình môi trường Docker Swarm
+#### 3.1.1. Kiểm tra môi trường Docker Swarm và network
 
 ```bash
 # Kiểm tra các node trong Docker Swarm
 docker node ls
 
-# Kiểm tra network overlay coinswarm
-docker network ls
+# Kiểm tra network overlay coinswarm đã tồn tại
+docker network ls | grep coinswarm
 
-# Nếu chưa có, tạo network overlay
-docker network create --driver overlay --attachable coinswarm
+# Kiểm tra các service đã được triển khai
+docker service ls
 ```
 
-#### 3.1.2. Build và chuẩn bị images DockerCoins
+#### 3.1.2. Chuẩn bị các image ELK Stack
 
 ```bash
-# Di chuyển đến thư mục orchestration-workshop-mrnam
-cd orchestration-workshop-mrnam/dockercoins
-
-# Build các image
-docker-compose build
-
-# Tag và push images
-export USERNAME=mrnam
-docker tag dockercoins_rng $USERNAME/rng
-docker tag dockercoins_hasher $USERNAME/hasher
-docker tag dockercoins_webui $USERNAME/webui
-docker tag dockercoins_worker $USERNAME/worker
-docker push $USERNAME/rng
-docker push $USERNAME/hasher
-docker push $USERNAME/webui
-docker push $USERNAME/worker
+# Pull các image từ docker.elastic.co
+docker pull docker.elastic.co/elasticsearch/elasticsearch:8.17.4
+docker pull docker.elastic.co/kibana/kibana:8.17.4
+docker pull docker.elastic.co/logstash/logstash:8.17.4
+docker pull docker.elastic.co/beats/filebeat:8.17.4
 ```
 
-### 3.2. Triển khai các service
+### 3.2. Triển khai các service ELK Stack
 
 #### 3.2.1. Tạo file docker-stack.yml
 
-File docker-stack.yml định nghĩa các services trong Docker Swarm, bao gồm:
-- 4 service DockerCoins (rng, hasher, worker, webui) và redis
-- Elasticsearch với các cấu hình phù hợp
+File docker-stack.yml định nghĩa các services của ELK Stack, bao gồm:
+- Elasticsearch với cấu hình phù hợp
 - Logstash với 2 replicas
 - Kibana để trực quan hóa dữ liệu
 - Filebeat để thu thập logs từ các container
@@ -85,7 +73,7 @@ File docker-stack.yml định nghĩa các services trong Docker Swarm, bao gồm
 Triển khai stack:
 
 ```bash
-docker stack deploy -c docker-stack.yml dockercoins
+docker stack deploy -c docker-stack.yml elk
 ```
 
 Kiểm tra trạng thái các service:
@@ -100,7 +88,7 @@ docker service ls
 
 ```bash
 # Kiểm tra số lượng replicas của Logstash
-docker service ps dockercoins_logstash
+docker service ps elk_logstash
 ```
 
 Kết quả mong đợi: 2 replicas của service Logstash đang chạy trên các node khác nhau của Swarm.
@@ -109,10 +97,10 @@ Kết quả mong đợi: 2 replicas của service Logstash đang chạy trên c�
 
 ```bash
 # Xem logs của Logstash
-docker service logs dockercoins_logstash
+docker service logs elk_logstash
 ```
 
-Kết quả mong đợi: Logs hiển thị Logstash đang nhận và xử lý dữ liệu từ 4 service (rng, hasher, worker, webui).
+Kết quả mong đợi: Logs hiển thị Logstash đang nhận và xử lý dữ liệu từ 4 service (rng, hasher, worker, webui) được triển khai sẵn.
 
 ### 4.3. Logstash xử lý dữ liệu log theo filter với thông tin quan trọng
 
@@ -124,14 +112,14 @@ Trong file logstash.conf, chúng ta đã cấu hình các filter để:
 
 ```bash
 # Kiểm tra logs Logstash để xác nhận xử lý thành công
-docker service logs dockercoins_logstash | grep "filter"
+docker service logs elk_logstash | grep "filter"
 ```
 
 ### 4.4. Elasticsearch chạy trên swarm
 
 ```bash
 # Kiểm tra trạng thái Elasticsearch
-docker service ps dockercoins_elasticsearch
+docker service ps elk_elasticsearch
 ```
 
 Kết quả mong đợi: Service Elasticsearch đang chạy trên swarm.
@@ -190,7 +178,7 @@ curl -X GET "http://vps0:9200/dockercoins-*/_search?pretty" -H 'Content-Type: ap
 
 ```bash
 # Kiểm tra trạng thái Kibana
-docker service ps dockercoins_kibana
+docker service ps elk_kibana
 ```
 
 Kết quả mong đợi: Service Kibana đang chạy trên swarm.
@@ -205,7 +193,7 @@ Kiểm tra từ command line:
 
 ```bash
 # Kiểm tra logs của Kibana để xác nhận kết nối với Elasticsearch
-docker service logs dockercoins_kibana | grep "elasticsearch"
+docker service logs elk_kibana | grep "elasticsearch"
 ```
 
 ### 4.8. Thao tác Kibana tìm kiếm logs, trực quan, phân tích dữ liệu logs
@@ -268,11 +256,11 @@ Thực hiện trong tab Discover của Kibana:
 
 Nguyên nhân phổ biến:
 - Không đủ quyền truy cập vào `/var/lib/docker/containers`
-- Cấu hình filebeat.yml không chính xác
+- Cấu hình filebeat.yml không chính xác hoặc không phù hợp với tên image thực tế
 - Network không thông giữa Filebeat và Logstash
 
 Giải pháp:
-- Kiểm tra quyền của container Filebeat: `docker service logs dockercoins_filebeat`
+- Kiểm tra quyền của container Filebeat: `docker service logs elk_filebeat`
 - Đảm bảo cấu hình `user: root` trong docker-stack.yml
 - Kiểm tra kết nối mạng: `docker exec -it <container_id> ping logstash`
 
@@ -284,7 +272,7 @@ Nguyên nhân phổ biến:
 - Kết nối đến Elasticsearch bị ngắt
 
 Giải pháp:
-- Kiểm tra logs của Logstash: `docker service logs dockercoins_logstash`
+- Kiểm tra logs của Logstash: `docker service logs elk_logstash`
 - Kiểm tra cú pháp file logstash.conf
 - Kiểm tra kết nối đến Elasticsearch: `curl http://elasticsearch:9200`
 
@@ -297,8 +285,8 @@ Nguyên nhân phổ biến:
 
 Giải pháp:
 - Kiểm tra dung lượng đĩa: `df -h`
-- Kiểm tra logs của Elasticsearch: `docker service logs dockercoins_elasticsearch`
-- Kiểm tra sức khỏe cluster: `curl -X GET "http://localhost:9200/_cluster/health?pretty"`
+- Kiểm tra logs của Elasticsearch: `docker service logs elk_elasticsearch`
+- Kiểm tra sức khỏe cluster: `curl -X GET "http://vps0:9200/_cluster/health?pretty"`
 
 ## 6. Kết luận và đề xuất
 
@@ -306,7 +294,7 @@ Giải pháp:
 
 Hệ thống ELK Stack đã được triển khai thành công trên Docker Swarm, đáp ứng các yêu cầu:
 - Logstash chạy với 2 replicas
-- Thu thập logs từ 4 service DockerCoins
+- Thu thập logs từ 4 service DockerCoins đã được triển khai sẵn
 - Xử lý và trích xuất thông tin quan trọng từ logs
 - Lưu trữ logs trong Elasticsearch
 - Trực quan hóa và phân tích dữ liệu qua Kibana
