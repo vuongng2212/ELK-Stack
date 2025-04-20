@@ -29,6 +29,8 @@ services:
     image: vuongng2212/hasher
     networks:
       - coinswarm
+    ports:
+      - "8002:80"
     logging:
       driver: "gelf"
       options:
@@ -39,6 +41,8 @@ services:
     image: vuongng2212/rng
     networks:
       - coinswarm
+    ports:
+      - "8001:80"
     logging:
       driver: "gelf"
       options:
