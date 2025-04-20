@@ -23,7 +23,10 @@ processors:
       host: "unix:///var/run/docker.sock"
 
 output.logstash:
-  hosts: ["logstash:5044"]
+  hosts: ["elk_stack_logstash:5044"]
+  ssl.enabled: false
+  timeout: 60s
+  slow_start: true
   
 logging.level: debug
 logging.to_stderr: true
