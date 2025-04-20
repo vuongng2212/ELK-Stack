@@ -84,7 +84,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - elk_network
-      - coinswarmnet
+      - coinswarm
     depends_on:
       - logstash
     deploy:
@@ -106,5 +106,5 @@ volumes:
 networks:
   elk_network:
     driver: overlay
-  coinswarmnet:
+  coinswarm:
     external: true
