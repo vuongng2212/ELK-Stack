@@ -8,6 +8,7 @@
 - **Yêu cầu**: Thu thập và phân tích logs từ 4 service (rng, hasher, worker, webui) trên Docker Swarm
 - **Giải pháp**: Triển khai ELK Stack (Elasticsearch, Logstash, Kibana) cùng với Filebeat
 - **Mục tiêu**: Giám sát tập trung, phân tích logs và trực quan hóa dữ liệu
+- **Giới hạn**: Chỉ vps0 có đủ tài nguyên để chạy ELK Stack
 
 ---
 
@@ -16,23 +17,27 @@
 ![ELK Stack Architecture](https://i.imgur.com/XHcvN5v.png)
 
 - **Các service đã triển khai**: rng, hasher, worker, webui (chạy trên network coinswarm)
-- **Filebeat**: Thu thập logs từ các container 
-- **Logstash**: Xử lý logs (2 replicas)
-- **Elasticsearch**: Lưu trữ và index dữ liệu
-- **Kibana**: Trực quan hóa và phân tích logs
+- **Filebeat**: Thu thập logs từ các container (chạy ở mode global)
+- **Logstash**: Xử lý logs với 2 replicas (chạy trên vps0)
+- **Elasticsearch**: Lưu trữ và index dữ liệu (chạy trên vps0)
+- **Kibana**: Trực quan hóa và phân tích logs (chạy trên vps0)
 
 ---
 
 ## Thực hiện triển khai
 
 1. **Tạo các file cấu hình**:
-   - docker-stack.yml: Định nghĩa các service ELK
+   - docker-stack.yml: Định nghĩa các service ELK với placement constraints
    - filebeat.yml: Cấu hình thu thập logs
    - logstash.conf: Cấu hình xử lý và filter logs
 
-2. **Triển khai trên Docker Swarm**:
-   ```bash
-   docker stack deploy -c docker-stack.yml elk
+2. **Chỉ định triển khai trên vps0**:
+   ```yaml
+   elasticsearch:
+     deploy:
+       placement:
+         constraints:
+           - node.hostname == vps0
    ```
 
 3. **Kiểm tra hoạt động**:
@@ -50,6 +55,9 @@
   logstash:
     deploy:
       replicas: 2
+      placement:
+        constraints:
+          - node.hostname == vps0
   ```
 
 - Kiểm tra số lượng replicas:
@@ -117,9 +125,13 @@
 
 ## Chức năng 4: Elasticsearch lưu trữ dữ liệu
 
-- Cấu hình lưu trữ:
+- Cấu hình lưu trữ và tối ưu hóa tài nguyên:
   ```yaml
   elasticsearch:
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     volumes:
       - esdata:/usr/share/elasticsearch/data
   ```
@@ -148,9 +160,34 @@
 
 ---
 
+## Tối ưu hiệu suất cho vps0
+
+- **Giới hạn bộ nhớ Elasticsearch**:
+  ```yaml
+  environment:
+    - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  ```
+
+- **Cấu hình Logstash hiệu quả**:
+  ```
+  filter {
+    # Sử dụng mutate và remove_field để giảm kích thước dữ liệu
+    mutate {
+      remove_field => ["agent", "ecs", "input", "log", "@version"]
+    }
+  }
+  ```
+
+- **Giám sát hiệu năng node vps0**:
+  ```bash
+  ssh vps0 "top -b -n 1"
+  ```
+
+---
+
 ## Demo & Kiểm thử
 
-- **Tạo logs test**: Thực hiện các request tới các service
+- **Truy cập Kibana**: http://vps0:5601
 - **Kiểm tra logs thu thập**: Kibana Discover
 - **Hiển thị dashboard**: Biểu đồ phân tích logs theo thời gian
 - **Tìm kiếm lỗi**: Tìm logs ERROR và HTTP error codes
@@ -160,7 +197,7 @@
 ## Kết luận
 
 - **Đã đạt yêu cầu**:
-  1. Logstash chạy với 2 replicas ✓
+  1. Logstash chạy với 2 replicas trên vps0 ✓
   2. Thu thập logs từ 4 services ✓
   3. Filter và xử lý logs với thông tin quan trọng ✓
   4. Elasticsearch lưu trữ dữ liệu ✓
@@ -168,6 +205,6 @@
   6. Kibana hiển thị và phân tích logs ✓
 
 - **Cải tiến tương lai**:
-  - Bổ sung alerts khi phát hiện lỗi
-  - Tích hợp APM để theo dõi hiệu năng
-  - Mở rộng Elasticsearch cluster 
+  - Nâng cấp tài nguyên cho vps0
+  - Triển khai Elasticsearch cluster nếu có thêm node mạnh
+  - Tối ưu thêm việc lưu trữ logs với Index Lifecycle Management 

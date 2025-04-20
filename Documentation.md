@@ -2,7 +2,7 @@
 
 ## 1. Giới thiệu
 
-Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticsearch, Logstash, Kibana) trên nền tảng Docker Swarm để thu thập, xử lý và trực quan hóa logs từ các service đã được triển khai sẵn gồm: rng, hasher, worker và webui trong ứng dụng DockerCoins.
+Báo cáo này trình bày việc triển khai hệ thống ELK Stack (Elasticsearch, Logstash, Kibana) trên nền tảng Docker Swarm để thu thập, xử lý và trực quan hóa logs từ các service đã được triển khai sẵn gồm: rng, hasher, worker và webui trong ứng dụng DockerCoins. Do yêu cầu tài nguyên cao của ELK Stack, các service này được chỉ định chạy trên node vps0, là node duy nhất có đủ tài nguyên trong cụm.
 
 ## 2. Kiến trúc Hệ thống
 
@@ -15,6 +15,8 @@ Hệ thống gồm các thành phần chính:
 - **Logstash**: Xử lý logs với 2 replicas, phân tích cú pháp và trích xuất thông tin quan trọng.
 - **Elasticsearch**: Lưu trữ và đánh index logs.
 - **Kibana**: Giao diện người dùng để trực quan hóa và phân tích logs.
+
+Tất cả các service ELK (ngoại trừ Filebeat chạy ở chế độ global) được chỉ định chạy trên node vps0 để đảm bảo hiệu suất.
 
 ### 2.2. Mô hình triển khai
 
@@ -50,7 +52,17 @@ docker network ls | grep coinswarm
 docker service ls
 ```
 
-#### 3.1.2. Chuẩn bị các image ELK Stack
+#### 3.1.2. Kiểm tra tài nguyên node vps0
+
+```bash
+# Kiểm tra tài nguyên CPU và RAM
+docker node inspect vps0 --format '{{ .Description.Resources }}'
+
+# Kiểm tra dung lượng đĩa
+ssh vps0 "df -h"
+```
+
+#### 3.1.3. Chuẩn bị các image ELK Stack
 
 ```bash
 # Pull các image từ docker.elastic.co
@@ -65,14 +77,18 @@ docker pull docker.elastic.co/beats/filebeat:8.17.4
 #### 3.2.1. Tạo file docker-stack.yml
 
 File docker-stack.yml định nghĩa các services của ELK Stack, bao gồm:
-- Elasticsearch với cấu hình phù hợp
-- Logstash với 2 replicas
-- Kibana để trực quan hóa dữ liệu
-- Filebeat để thu thập logs từ các container
+- Elasticsearch với cấu hình phù hợp, chạy trên vps0
+- Logstash với 2 replicas, chạy trên vps0
+- Kibana để trực quan hóa dữ liệu, chạy trên vps0
+- Filebeat để thu thập logs từ các container, chạy trong chế độ global
 
-Triển khai stack:
+Triển khai stack từ node vps0:
 
 ```bash
+# Đảm bảo thực hiện trên node vps0
+ssh vps0
+
+# Triển khai stack
 docker stack deploy -c docker-stack.yml elk
 ```
 
@@ -91,7 +107,7 @@ docker service ls
 docker service ps elk_logstash
 ```
 
-Kết quả mong đợi: 2 replicas của service Logstash đang chạy trên các node khác nhau của Swarm.
+Kết quả mong đợi: 2 replicas của service Logstash đang chạy trên node vps0.
 
 ### 4.2. Test log của Logstash đọc logs từ 4 services
 
@@ -122,7 +138,7 @@ docker service logs elk_logstash | grep "filter"
 docker service ps elk_elasticsearch
 ```
 
-Kết quả mong đợi: Service Elasticsearch đang chạy trên swarm.
+Kết quả mong đợi: Service Elasticsearch đang chạy trên node vps0.
 
 ### 4.5. Truy vấn dữ liệu trong Elasticsearch
 
@@ -181,7 +197,7 @@ curl -X GET "http://vps0:9200/dockercoins-*/_search?pretty" -H 'Content-Type: ap
 docker service ps elk_kibana
 ```
 
-Kết quả mong đợi: Service Kibana đang chạy trên swarm.
+Kết quả mong đợi: Service Kibana đang chạy trên node vps0.
 
 ### 4.7. Kibana kết nối lấy dữ liệu từ Elasticsearch
 
@@ -288,12 +304,21 @@ Giải pháp:
 - Kiểm tra logs của Elasticsearch: `docker service logs elk_elasticsearch`
 - Kiểm tra sức khỏe cluster: `curl -X GET "http://vps0:9200/_cluster/health?pretty"`
 
+### 5.4. Vấn đề hiệu năng trên vps0
+
+Vì tất cả service ELK đều chạy trên vps0, có thể xảy ra vấn đề về hiệu năng:
+
+Giải pháp:
+- Tối ưu heap size của Elasticsearch: `ES_JAVA_OPTS=-Xms256m -Xmx512m`
+- Giảm số replicas của Logstash nếu cần
+- Giới hạn dung lượng đĩa sử dụng bởi logs bằng cấu hình index lifecycle management
+
 ## 6. Kết luận và đề xuất
 
 ### 6.1. Kết luận
 
 Hệ thống ELK Stack đã được triển khai thành công trên Docker Swarm, đáp ứng các yêu cầu:
-- Logstash chạy với 2 replicas
+- Logstash chạy với 2 replicas trên node vps0
 - Thu thập logs từ 4 service DockerCoins đã được triển khai sẵn
 - Xử lý và trích xuất thông tin quan trọng từ logs
 - Lưu trữ logs trong Elasticsearch
@@ -302,7 +327,7 @@ Hệ thống ELK Stack đã được triển khai thành công trên Docker Swar
 ### 6.2. Đề xuất cải tiến
 
 1. **Bảo mật**: Bật xpack.security để bảo vệ dữ liệu và yêu cầu xác thực
-2. **Mở rộng**: Cấu hình Elasticsearch cluster với nhiều node cho khả năng mở rộng
-3. **Giám sát**: Thêm các công cụ giám sát như Metricbeat để thu thập metrics
+2. **Mở rộng**: Nâng cấp tài nguyên cho vps0 hoặc phân tán Elasticsearch nếu có node khác đủ mạnh
+3. **Giám sát**: Thêm các công cụ giám sát như Metricbeat để theo dõi hiệu năng
 4. **Dữ liệu**: Cấu hình Index Lifecycle Management để quản lý vòng đời dữ liệu
 5. **Cảnh báo**: Thiết lập cảnh báo qua Kibana Alerting khi phát hiện vấn đề 
