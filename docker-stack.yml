@@ -52,6 +52,7 @@ services:
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.17.4
+    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:
@@ -62,8 +63,8 @@ services:
       - "http.host=0.0.0.0"
       - "xpack.monitoring.elasticsearch.hosts=http://elasticsearch:9200"
       - "config.reload.automatic=true"
-      - "monitoring.elasticsearch.hosts=[\"http://elasticsearch:9200\"]"
-      - "pipeline.workers=2"
+      - "path.config=/usr/share/logstash/pipeline"
+      - "log.level=debug"
     networks:
       - elk_network
       - coinswarm
@@ -97,7 +98,7 @@ services:
       - /:/hostfs:ro
     environment:
       - DOCKER_CONTAINERS_NETWORK=coinswarm
-      - OUTPUT_LOGSTASH_HOST=logstash
+      - OUTPUT_LOGSTASH_HOST=elk_stack_logstash
       - OUTPUT_LOGSTASH_PORT=5044
     networks:
       - elk_network
