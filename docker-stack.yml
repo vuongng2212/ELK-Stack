@@ -56,8 +56,13 @@ services:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:
       - "5044:5044"
+      - "9600:9600"
     environment:
       - "LS_JAVA_OPTS=-Xms128m -Xmx128m"
+      - "xpack.monitoring.enabled=true"
+      - "path.config=/usr/share/logstash/pipeline"
+      - "config.reload.automatic=true"
+      - "config.reload.interval=30s"
     networks:
       - elk_network
       - coinswarm
@@ -67,7 +72,7 @@ services:
       placement:
         constraints:
           - node.hostname == vps0
-      replicas: 2
+      replicas: 1
       resources:
         limits:
           memory: 256m
