@@ -1,128 +1,79 @@
-version: '3.8'
+version: "3.8"
 
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.4
     environment:
-      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
-      - "discovery.type=single-node"
-      - "xpack.security.enabled=false"
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    networks:
+      - coinswarm
+      - elk
     ports:
       - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    networks:
-      - elk_network
+      - "9300:9300"
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
-      resources:
-        limits:
-          memory: 512m
+      replicas: 1
       restart_policy:
         condition: on-failure
-        delay: 5s
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.17.4
     environment:
-      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
-      - "NODE_OPTIONS=--max-old-space-size=512"
-      - "XPACK_ENCRYPTEDLOGGING_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
-      - "XPACK_SECURITY_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
-      - "XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
-      - "XPACK_REPORTING_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - XPACK_SECURITY_ENABLED=false
+    networks:
+      - elk
+      - coinswarm
     ports:
       - "5601:5601"
-    networks:
-      - elk_network
-    depends_on:
-      - elasticsearch
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
-      resources:
-        limits:
-          memory: 512m
+      replicas: 1
       restart_policy:
         condition: on-failure
-        delay: 5s
+    depends_on:
+      - elasticsearch
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.17.4
-    command: logstash -f /usr/share/logstash/pipeline/logstash.conf
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
-    ports:
-      - "5044:5044"
-      - "9600:9600"
-    environment:
-      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
-      - "http.host=0.0.0.0"
-      - "xpack.monitoring.elasticsearch.hosts=http://elasticsearch:9200"
-      - "config.reload.automatic=true"
-      - "path.config=/usr/share/logstash/pipeline"
-      - "log.level=debug"
     networks:
-      - elk_network
+      - elk
       - coinswarm
-    depends_on:
-      - elasticsearch
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
       replicas: 2
-      resources:
-        limits:
-          memory: 256m
       restart_policy:
         condition: on-failure
-        delay: 5s
-      update_config:
-        parallelism: 1
-        delay: 30s
+    depends_on:
+      - elasticsearch
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.17.4
-    user: root
-    command: ["filebeat", "-e", "--strict.perms=false"]
     volumes:
       - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
-      - /proc:/hostfs/proc:ro
-      - /:/hostfs:ro
-    environment:
-      - DOCKER_CONTAINERS_NETWORK=coinswarm
-      - OUTPUT_LOGSTASH_HOST=elk_stack_logstash
-      - OUTPUT_LOGSTASH_PORT=5044
     networks:
-      - elk_network
+      - elk
       - coinswarm
-    depends_on:
-      - logstash
+    user: root
     deploy:
-      placement:
-        constraints:
-          - node.hostname == vps0
-      replicas: 1
-      resources:
-        limits:
-          memory: 128m
+      mode: global
       restart_policy:
         condition: on-failure
-        max_attempts: 3
-        delay: 10s
-
-volumes:
-  elasticsearch-data:
+    depends_on:
+      - logstash
 
 networks:
-  elk_network:
-    driver: overlay
   coinswarm:
     external: true
+  elk:
+    driver: overlay
+
+volumes:
+  esdata:
+    driver: local 

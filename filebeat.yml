@@ -1,46 +1,46 @@
 filebeat.inputs:
 - type: container
-  enabled: true
   paths:
-    - /var/lib/docker/containers/*/*.log
+    - '/var/lib/docker/containers/*/*.log'
   json.keys_under_root: true
+  json.overwrite_keys: true
   json.add_error_key: true
-  json.message_key: message
-  containers.ids:
-    - "*"
-  exclude_files: []
+  json.message_key: log
+  processors:
+    - add_docker_metadata:
+        host: "unix:///var/run/docker.sock"
+    - add_fields:
+        target: docker
+        fields:
+          swarm_stack: ${SWARM_STACK_NAME:dockercoins}
+    - drop_event:
+        when:
+          not:
+            or:
+              - equals:
+                  container.image.name: "${USERNAME:-mrnam}/worker"
+              - equals:
+                  container.image.name: "${USERNAME:-mrnam}/webui"
+              - equals:
+                  container.image.name: "${USERNAME:-mrnam}/hasher"
+              - equals:
+                  container.image.name: "${USERNAME:-mrnam}/rng"
 
-# Disable strict permission checks
-filebeat.registry.flush: 5s
-filebeat.shutdown_timeout: 10s
-filebeat.ilm.enabled: false
+filebeat.config:
+  modules:
+    path: ${path.config}/modules.d/*.yml
+    reload.enabled: false
 
-setup.template.enabled: true
-setup.template.name: "filebeat"
-setup.template.pattern: "filebeat-*"
-
-processors:
-  - add_host_metadata: ~
-  - add_cloud_metadata: ~
-  - add_docker_metadata:
-      host: "unix:///var/run/docker.sock"
-      networks: ["coinswarm", "elk_network", "*"]
-      labels.dedot: true
-      match_fields: ["name", "id"]
-      match_pids: ["process.pid", "process.ppid"]
-      match_source: true
-      match_source_index: 4
-      match_short_id: true
+setup.ilm.enabled: false
+setup.template.enabled: false
 
 output.logstash:
-  hosts: ["elk_stack_logstash:5044"]
-  ssl.enabled: false
-  timeout: 60s
-  slow_start: true
-  loadbalance: true
-  worker: 2
-  
-logging.level: debug
-logging.to_stderr: true
-logging.metrics.enabled: false
-logging.selectors: ["*"]
+  hosts: ["logstash:5044"]
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640 
