@@ -39,14 +39,46 @@ docker swarm join --token <TOKEN> <IP_vps0>:2377
 
 ### 3.2. Triển khai Stack
 
+Để triển khai stack ELK trên Docker Swarm:
+
 ```bash
+# Chuyển đến thư mục chứa các file cấu hình
+cd /path/to/elk-stack
+
+# Triển khai stack
 docker stack deploy -c docker-stack.yml elk
 ```
 
 ### 3.3. Kiểm tra trạng thái các service
 
 ```bash
+# Xem tất cả các service trong stack
 docker service ls
+
+# Xem chi tiết service cụ thể
+docker service ps elk_elasticsearch
+docker service ps elk_logstash
+docker service ps elk_kibana
+docker service ps elk_filebeat
+```
+
+### 3.4. Cập nhật và xóa Stack
+
+Để cập nhật cấu hình sau khi chỉnh sửa file docker-stack.yml:
+
+```bash
+# Cập nhật stack với cấu hình mới
+docker stack deploy -c docker-stack.yml elk
+```
+
+Để xóa stack ELK khỏi Docker Swarm:
+
+```bash
+# Xóa toàn bộ stack ELK
+docker stack rm elk
+
+# Kiểm tra xem stack đã được xóa chưa
+docker stack ls
 ```
 
 ## 4. Các thành phần chính

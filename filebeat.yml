@@ -31,3 +31,21 @@ logging.files:
   path: /var/log/filebeat
   name: filebeat.log
   keepfiles: 7
+
+volumes:
+  - type: bind
+    source: /var/log
+    target: /var/log
+    read_only: true
+  - type: bind
+    source: /var/lib/docker/containers
+    target: /var/lib/docker/containers
+    read_only: true
+  - type: bind
+    source: /var/run/docker.sock
+    target: /var/run/docker.sock
+    read_only: true
+
+configs:
+  filebeat_config:
+    file: ./filebeat.yml
