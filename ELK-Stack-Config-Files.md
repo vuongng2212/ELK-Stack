@@ -1,8 +1,10 @@
-# Hướng dẫn triển khai ELK Stack cho CoinSwarm
+# File cấu hình hoàn chỉnh cho ELK Stack
 
-## File cấu hình hoàn chỉnh
+Tài liệu này chứa các file cấu hình hoàn chỉnh để triển khai ELK Stack (Elasticsearch, Logstash, Kibana) trên Docker Swarm.
 
-### 1. docker-stack-elk.yml
+## 1. docker-stack-elk.yml
+
+File này định nghĩa các service Elasticsearch, Kibana và Logstash để triển khai trên Docker Swarm.
 
 ```yaml
 version: "3.8"
@@ -24,7 +26,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == vps0
+          - node.hostname == 192.168.186.101
       restart_policy:
         condition: on-failure
     volumes:
@@ -49,7 +51,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.hostname == vps0
+          - node.hostname == 192.168.186.101
       restart_policy:
         condition: on-failure
     depends_on:
@@ -78,7 +80,7 @@ services:
       replicas: 2
       placement:
         constraints:
-          - node.hostname == vps0
+          - node.hostname == 192.168.186.101
       restart_policy:
         condition: on-failure
     depends_on:
@@ -100,7 +102,9 @@ volumes:
     driver: local
 ```
 
-### 2. logstash.conf
+## 2. logstash.conf
+
+File này cấu hình các input, filter và output cho Logstash.
 
 ```
 input {
@@ -281,72 +285,24 @@ output {
 }
 ```
 
-## Các bước triển khai
+## 3. Cấu hình log driver cho các service CoinSwarm
 
-1. **Kiểm tra network coinswarmnet**:
-   ```
-   docker network ls
-   ```
-   Nếu chưa có, tạo mới:
-   ```
-   docker network create --driver overlay --attachable coinswarmnet
-   ```
+Đây là các lệnh để cấu hình log driver cho các service CoinSwarm để gửi logs đến Logstash:
 
-2. **Lưu các file cấu hình**:
-   - Lưu `docker-stack-elk.yml` vào thư mục làm việc
-   - Lưu `logstash.conf` vào cùng thư mục
+```bash
+docker service update --log-driver gelf --log-opt gelf-address=udp://192.168.186.101:12201 redis
+docker service update --log-driver gelf --log-opt gelf-address=udp://192.168.186.101:12201 rng
+docker service update --log-driver gelf --log-opt gelf-address=udp://192.168.186.101:12201 hasher
+docker service update --log-driver gelf --log-opt gelf-address=udp://192.168.186.101:12201 worker
+docker service update --log-driver gelf --log-opt gelf-address=udp://192.168.186.101:12201 webui
+```
 
-3. **Triển khai ELK Stack**:
-   ```
-   docker stack deploy -c docker-stack-elk.yml elk
-   ```
+## 4. Lệnh triển khai
 
-4. **Kiểm tra các service đã triển khai**:
-   ```
-   docker stack services elk
-   ```
+```bash
+# Kiểm tra và tạo network nếu cần
+docker network create --driver overlay --attachable coinswarmnet
 
-5. **Cấu hình log driver cho các service CoinSwarm**:
-   ```
-   docker service update --log-driver gelf --log-opt gelf-address=udp://vps0:12201 redis
-   docker service update --log-driver gelf --log-opt gelf-address=udp://vps0:12201 rng
-   docker service update --log-driver gelf --log-opt gelf-address=udp://vps0:12201 hasher
-   docker service update --log-driver gelf --log-opt gelf-address=udp://vps0:12201 worker
-   docker service update --log-driver gelf --log-opt gelf-address=udp://vps0:12201 webui
-   ```
-
-6. **Kiểm tra logs tại logstash**:
-   ```
-   docker service logs elk_logstash
-   ```
-
-7. **Truy cập Kibana**:
-   - URL: http://vps0:5601
-
-8. **Tạo index pattern trong Kibana**:
-   - Stack Management > Data Views > Create data view
-   - Pattern: `dockercoins-*`
-   - Time field: `@timestamp`
-   - Nhấn "Save"
-
-9. **Thao tác Kibana tìm kiếm logs**:
-   - Đi đến "Discover"
-   - Tìm kiếm với queries, ví dụ: `app_type: "worker"` hoặc `tags: "error_log"`
-
-10. **Tạo dashboard trong Kibana**:
-    - Đi đến "Dashboard" > "Create dashboard"
-    - Thêm các visualization cần thiết
-
-## Kiểm tra yêu cầu
-
-1. **Logstash chạy với 2 replicas**: Đã cấu hình trong file docker-stack-elk.yml
-2. **Đọc logs từ 4 services**: Kiểm tra bằng filter trên Kibana
-3. **Lọc thông tin quan trọng**: Xem các tags như "important", "error_log"
-4. **Elasticsearch chạy trên swarm**: Kiểm tra với `docker stack services elk`
-5. **Truy vấn Elasticsearch**: Sử dụng Kibana Discover hoặc API:
-   ```
-   curl http://vps0:9200/dockercoins-*/_search?pretty
-   ```
-6. **Kibana chạy trên swarm**: Truy cập http://vps0:5601
-7. **Kibana kết nối Elasticsearch**: Tạo và xem được index pattern
-8. **Thao tác Kibana phân tích logs**: Sử dụng Discover, Visualize, Dashboard 
+# Triển khai ELK Stack
+docker stack deploy -c docker-stack-elk.yml elk
+``` 
