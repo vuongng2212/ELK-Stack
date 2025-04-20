@@ -63,6 +63,10 @@ services:
       - "path.config=/usr/share/logstash/pipeline"
       - "config.reload.automatic=true"
       - "config.reload.interval=30s"
+      - "node.name={{.Service.Name}}-{{.Task.Slot}}"
+      - "pipeline.workers=1"
+      - "pipeline.batch.size=125"
+      - "pipeline.batch.delay=50"
     networks:
       - elk_network
       - coinswarm
@@ -72,13 +76,17 @@ services:
       placement:
         constraints:
           - node.hostname == vps0
-      replicas: 1
+      replicas: 2
       resources:
         limits:
           memory: 256m
       restart_policy:
         condition: on-failure
         delay: 5s
+      update_config:
+        parallelism: 1
+        delay: 30s
+        order: start-first
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.17.4
@@ -93,7 +101,7 @@ services:
       - /:/hostfs:ro
     environment:
       - DOCKER_CONTAINERS_NETWORK=coinswarm
-      - OUTPUT_LOGSTASH_HOST=elk_stack_logstash
+      - OUTPUT_LOGSTASH_HOST=logstash
       - OUTPUT_LOGSTASH_PORT=5044
     networks:
       - elk_network
