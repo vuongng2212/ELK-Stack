@@ -27,9 +27,23 @@ docker network ls | grep coinswarmnet
 
 # Nếu chưa có, tạo mới
 docker network create --driver overlay --attachable coinswarmnet
+
+# Create coinswarm service
+sudo docker service create --name redis --network coinswarmnet redis
+sudo docker service create --name rng -p  8001:80 --network coinswarmnet vuongng2212/rng:coinswarm
+sudo docker service create --name hasher -p  8002:80 --network coinswarmnet vuongng2212/hasher:coinswarm
+sudo docker service create --name worker --network coinswarmnet vuongng2212/worker:coinswarm
+sudo docker service create --name webui -p 8000:80 --network coinswarmnet vuongng2212/webui:coinswarm
+
+#Scaling
+sudo docker service scale worker=15
+sudo docker service scale rng=10
+sudo docker service scale hasher=10
+sudo docker service scale webui=5
+sudo docker service scale redis=2
 ```
 
-### 1.3. Tạo thư mục làm việc
+### 1.3. Tạo thư mục làm việc (Có thể clone từ github)
 
 ```bash
 mkdir -p ~/elk-stack
