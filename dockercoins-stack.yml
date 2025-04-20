@@ -12,7 +12,7 @@ services:
         tag: "redis"
 
   worker:
-    image: vuongng2212/worker
+    image: vuongng2212/worker:coinswarm
     networks:
       - coinswarm
     depends_on:
@@ -26,7 +26,7 @@ services:
         tag: "worker"
 
   hasher:
-    image: vuongng2212/hasher
+    image: vuongng2212/hasher:coinswarm
     networks:
       - coinswarm
     ports:
@@ -38,7 +38,7 @@ services:
         tag: "hasher"
 
   rng:
-    image: vuongng2212/rng
+    image: vuongng2212/rng:coinswarm
     networks:
       - coinswarm
     ports:
@@ -50,7 +50,7 @@ services:
         tag: "rng"
 
   webui:
-    image: vuongng2212/webui
+    image: vuongng2212/webui:coinswarm
     networks:
       - coinswarm
     ports:
