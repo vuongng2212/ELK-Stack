@@ -28,7 +28,6 @@ processors:
       process_array: false
       max_depth: 1
       add_error_key: true
-      ignore_decoding_error: true
 
 output.logstash:
   hosts: ["logstash:5044"]
