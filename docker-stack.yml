@@ -1,4 +1,4 @@
-version: '3.7'
+version: '3.8'
 
 services:
   elasticsearch:
@@ -58,15 +58,12 @@ services:
       - "5044:5044"
       - "9600:9600"
     environment:
-      - "LS_JAVA_OPTS=-Xms128m -Xmx128m"
-      - "xpack.monitoring.enabled=true"
-      - "path.config=/usr/share/logstash/pipeline"
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+      - "http.host=0.0.0.0"
+      - "xpack.monitoring.elasticsearch.hosts=http://elasticsearch:9200"
       - "config.reload.automatic=true"
-      - "config.reload.interval=30s"
-      - "node.name={{.Service.Name}}-{{.Task.Slot}}"
-      - "pipeline.workers=1"
-      - "pipeline.batch.size=125"
-      - "pipeline.batch.delay=50"
+      - "monitoring.elasticsearch.hosts=[\"http://elasticsearch:9200\"]"
+      - "pipeline.workers=2"
     networks:
       - elk_network
       - coinswarm
@@ -86,7 +83,6 @@ services:
       update_config:
         parallelism: 1
         delay: 30s
-        order: start-first
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.17.4
