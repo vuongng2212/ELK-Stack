@@ -252,22 +252,41 @@ Mở trình duyệt và truy cập: `http://<IP_máy_ảo>:5601`
 
 #### Tạo Index Pattern:
 
-1. Truy cập Kibana UI tại `http://<IP_máy_ảo>:5601`
-2. Vào "Stack Management" > "Index Patterns"
-3. Chọn "Create index pattern"
-4. Nhập `logs-*` vào ô "Index pattern name"
-5. Nhấn "Next step"
-6. Chọn `@timestamp` làm trường thời gian (Time field)
-7. Nhấn "Create index pattern"
+1. Truy cập Kibana UI tại `http://192.168.186.101:5601`
+2. Vào mục "Management" ở menu bên trái (biểu tượng bánh răng)
+3. Trong phần Kibana, chọn "Data Views" (trước đây gọi là Index Patterns)
+4. Chọn "Create data view"
+5. Trong trường "Name", nhập `logs-*` (đây là mẫu index pattern để khớp với tất cả indices bắt đầu bằng "logs-")
+6. Trong trường "Index pattern", nhập cùng giá trị `logs-*`
+   - Nếu không thấy kết quả nào, có thể nhập `filebeat-*` hoặc kiểm tra các indices có sẵn trong Elasticsearch
+   - Bạn cũng có thể sử dụng `*` để khớp với tất cả indices
+7. Trong trường "Timestamp field", chọn `@timestamp` từ danh sách dropdown
+8. Nhấn "Save data view to Kibana"
+
+**Lưu ý về Index Pattern:**
+- Index pattern là mẫu tìm kiếm để Kibana biết đọc dữ liệu từ những indices nào trong Elasticsearch
+- Trong `logstash.conf`, chúng ta đã cấu hình tạo indices với mẫu: `logs-%{service_name}-%{+YYYY.MM.dd}`
+- Vì vậy, nhập `logs-*` sẽ khớp với tất cả indices tạo bởi Logstash
 
 #### Kiểm tra kết nối:
 
-1. Vào "Dev Tools" trong Kibana
-2. Nhập và chạy lệnh sau:
+1. Vào "Dev Tools" trong menu bên trái của Kibana
+2. Nhập và chạy lệnh sau trong Console:
    ```
    GET _cluster/health
    ```
 3. Kiểm tra phản hồi để xác nhận kết nối thành công
+
+#### Kiểm tra các indices đã tạo:
+
+Nếu không thấy indices nào khớp với `logs-*`, bạn có thể kiểm tra các indices hiện có trong Elasticsearch bằng cách:
+
+1. Trong Dev Tools, chạy lệnh:
+   ```
+   GET _cat/indices?v
+   ```
+2. Xem danh sách indices và sử dụng mẫu phù hợp khi tạo Data View
+3. Nếu thấy indices có tên như `filebeat-YYYY.MM.DD`, hãy sử dụng `filebeat-*` làm index pattern
 
 ### Yêu cầu 8: Thao tác Kibana tìm kiếm logs, trực quan, phân tích dữ liệu logs
 
@@ -291,6 +310,7 @@ Mở trình duyệt và truy cập: `http://<IP_máy_ảo>:5601`
    - Y-axis: Count (metric)
    - X-axis: Date Histogram, field @timestamp
 4. Nhấn "Update" và lưu với tên "Logs Distribution Over Time"
+
 
 **Biểu đồ tròn hiển thị tỷ lệ logs theo service:**
 
