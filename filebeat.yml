@@ -31,10 +31,6 @@ processors:
   - add_cloud_metadata: ~
   - add_docker_metadata:
       host: "unix:///var/run/docker.sock"
-  - drop_event:
-      when:
-        not:
-          has_fields: ["container.labels.com.docker.stack.namespace"]
 
 output.logstash:
   hosts: ["logstash:5044"]
