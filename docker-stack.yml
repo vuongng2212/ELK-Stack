@@ -84,6 +84,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - elk_network
+      - mrnamnet
     depends_on:
       - logstash
     deploy:
@@ -105,3 +106,5 @@ volumes:
 networks:
   elk_network:
     driver: overlay
+  mrnamnet:
+    external: true
