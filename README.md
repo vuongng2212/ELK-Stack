@@ -33,7 +33,7 @@ docker swarm init --advertise-addr <IP_máy_ảo>
 
 ### 3.2. Triển khai ELK Stack
 
-#### 3.2.1 Triển khai ELK Stack qua Docker Swarm
+Tất cả các thành phần (Elasticsearch, Logstash, Kibana và Filebeat) được triển khai hoàn toàn qua Docker Swarm và được cấu hình để chạy trên cùng một node với yêu cầu tài nguyên tối thiểu phù hợp cho môi trường máy ảo.
 
 ```bash
 # Chuyển đến thư mục chứa các file cấu hình
@@ -42,8 +42,6 @@ cd /path/to/elk-stack
 # Triển khai stack
 docker stack deploy -c docker-stack.yml elk_stack
 ```
-
-Tất cả các thành phần (Elasticsearch, Logstash, Kibana và Filebeat) được cấu hình để chạy trên cùng một node và với yêu cầu tài nguyên tối thiểu phù hợp cho môi trường máy ảo.
 
 ### 3.3. Kiểm tra trạng thái các service
 

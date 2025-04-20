@@ -72,7 +72,7 @@ services:
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.17.4
     user: root
-    command: filebeat -e -strict.perms=false
+    command: ["filebeat", "-e", "--strict.perms=false"]
     volumes:
       - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
@@ -91,7 +91,8 @@ services:
           memory: 128m
       restart_policy:
         condition: on-failure
-        delay: 5s
+        max_attempts: 3
+        delay: 10s
 
 volumes:
   elasticsearch-data:
