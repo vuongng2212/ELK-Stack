@@ -133,11 +133,11 @@ input {
 filter {
   # Thêm trường service_name để dễ truy vấn
   mutate {
-    add_field => { "service_name" => "%{[container][image][name]}" }
+    add_field => { "service_name" => "%{container_id}" }
   }
   
   # Phát hiện loại dịch vụ dựa trên nội dung message hoặc metadata có sẵn
-  if [message] =~ "worker" or [container][image] =~ "worker" or [container][name] =~ "worker" {
+  if [message] =~ "worker" or [image_name] =~ "worker" or [container_name] =~ "worker" {
     mutate { 
       add_field => { "[@metadata][app]" => "worker" }
       add_field => { "app_type" => "worker" }
@@ -167,7 +167,7 @@ filter {
       }
     }
   }
-  else if [message] =~ "webui" or [container][image] =~ "webui" or [container][name] =~ "webui" {
+  else if [message] =~ "webui" or [image_name] =~ "webui" or [container_name] =~ "webui" {
     mutate { 
       add_field => { "[@metadata][app]" => "webui" }
       add_field => { "app_type" => "webui" }
@@ -188,7 +188,7 @@ filter {
       }
     }
   }
-  else if [message] =~ "hasher" or [container][image] =~ "hasher" or [container][name] =~ "hasher" {
+  else if [message] =~ "hasher" or [image_name] =~ "hasher" or [container_name] =~ "hasher" {
     mutate { 
       add_field => { "[@metadata][app]" => "hasher" }
       add_field => { "app_type" => "hasher" }
@@ -212,7 +212,7 @@ filter {
       mutate { add_tag => ["warning_log"] }
     }
   }
-  else if [message] =~ "rng" or [container][image] =~ "rng" or [container][name] =~ "rng" {
+  else if [message] =~ "rng" or [image_name] =~ "rng" or [container_name] =~ "rng" {
     mutate { 
       add_field => { "[@metadata][app]" => "rng" }
       add_field => { "app_type" => "rng" }
@@ -236,7 +236,7 @@ filter {
       mutate { add_tag => ["warning_log"] }
     }
   }
-  else if [message] =~ "redis" or [container][image] =~ "redis" or [container][name] =~ "redis" {
+  else if [message] =~ "redis" or [image_name] =~ "redis" or [container_name] =~ "redis" {
     mutate { 
       add_field => { "[@metadata][app]" => "redis" }
       add_field => { "app_type" => "redis" }
@@ -256,9 +256,9 @@ filter {
   }
   
   # Thêm thông tin về host và container
-  if [container][name] {
+  if [container_name] {
     mutate {
-      add_field => { "container_name" => "%{[container][name]}" }
+      add_field => { "container_name" => "%{[container_name]}" }
     }
   }
   
@@ -305,4 +305,13 @@ docker network create --driver overlay --attachable coinswarmnet
 
 # Triển khai ELK Stack
 docker stack deploy -c docker-stack-elk.yml elk
+```
+
+## 5. Cập nhật Logstash khi có thay đổi cấu hình
+
+Nếu bạn đã thay đổi file logstash.conf và muốn áp dụng thay đổi, hãy sử dụng lệnh:
+
+```bash
+# Buộc cập nhật service logstash để áp dụng cấu hình mới
+docker service update --force elk_logstash
 ``` 

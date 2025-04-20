@@ -145,11 +145,11 @@ Ngoài ra, có thể kiểm tra trên Kibana sau khi đã thiết lập index pa
 filter {
   # Thêm trường service_name để dễ truy vấn
   mutate {
-    add_field => { "service_name" => "%{[container][image][name]}" }
+    add_field => { "service_name" => "%{container_id}" }
   }
   
   # Filter cho worker
-  if [message] =~ "worker" or [container][image] =~ "worker" or [container][name] =~ "worker" {
+  if [message] =~ "worker" or [image_name] =~ "worker" or [container_name] =~ "worker" {
     mutate { 
       add_field => { "[@metadata][app]" => "worker" }
       add_field => { "app_type" => "worker" }
@@ -180,23 +180,8 @@ filter {
     }
   }
   
-  # Filter cho webui
-  else if [message] =~ "webui" or [container][image] =~ "webui" or [container][name] =~ "webui" {
-    # Cấu hình filter cho webui
-    # ...
-  }
-  
-  # Filter cho hasher
-  else if [message] =~ "hasher" or [container][image] =~ "hasher" or [container][name] =~ "hasher" {
-    # Cấu hình filter cho hasher
-    # ...
-  }
-  
-  # Filter cho rng
-  else if [message] =~ "rng" or [container][image] =~ "rng" or [container][name] =~ "rng" {
-    # Cấu hình filter cho rng
-    # ...
-  }
+  # Filter cho các service khác (webui, hasher, rng, redis)
+  # (Chi tiết theo tài liệu ELK-Stack-Config-Files.md)
   
   # Phát hiện lỗi hoặc exception trong message
   if [message] =~ ".*(error|exception|fail|timeout).*" or [log_message] =~ ".*(error|exception|fail|timeout).*" {
@@ -212,6 +197,8 @@ Trong Kibana, tìm kiếm các tag đã được thêm vào logs:
 - Tìm `tags:warning_log`
 - Tìm `tags:important`
 - Tìm `tags:contains_error_keywords`
+
+Lưu ý: Nếu không tìm thấy kết quả bằng cách tìm theo tags, hãy thử mở rộng khung thời gian tìm kiếm và tìm kiếm theo các trường khác.
 
 ## Yêu cầu 4: Elasticsearch chạy trên swarm
 
@@ -363,18 +350,24 @@ Ngoài ra, truy cập Kibana qua trình duyệt: http://192.168.186.101:5601
 
 1. Đi đến "Discover" tab
 2. Chọn index pattern vừa tạo
-3. Nếu dữ liệu hiển thị, việc kết nối đã thành công
+3. Mở rộng khung thời gian tìm kiếm (chọn "Last 24 hours" hoặc "Last 7 days")
+4. Nếu dữ liệu hiển thị, việc kết nối đã thành công
 
 ## Yêu cầu 8: Thao tác Kibana tìm kiếm logs, trực quan, phân tích dữ liệu logs
 
 ### Tìm kiếm logs
 
 1. Đi đến "Discover" tab trong Kibana
-2. Sử dụng các truy vấn:
-   - Tìm logs từ worker: `app_type:worker`
-   - Tìm logs từ webui: `app_type:webui` 
-   - Tìm logs từ hasher: `app_type:hasher`
-   - Tìm logs từ rng: `app_type:rng`
+2. **Điều chỉnh khung thời gian**:
+   - Ở góc trên bên phải, nhấp vào bộ chọn thời gian (thường hiển thị "Last 15 minutes")
+   - Chọn khoảng thời gian lớn hơn, ví dụ: "Last 24 hours", "Last 7 days", hoặc "Last 30 days"
+   - Nhấp "Apply" để áp dụng
+
+3. Sử dụng các truy vấn:
+   - Tìm logs từ worker: `app_type:worker` hoặc `*worker*` hoặc `image_name:*worker*` hoặc `container_name:*worker*`
+   - Tìm logs từ webui: `app_type:webui` hoặc `*webui*` hoặc `image_name:*webui*` hoặc `container_name:*webui*`
+   - Tìm logs từ hasher: `app_type:hasher` hoặc `*hasher*` hoặc `image_name:*hasher*` hoặc `container_name:*hasher*`
+   - Tìm logs từ rng: `app_type:rng` hoặc `*rng*` hoặc `image_name:*rng*` hoặc `container_name:*rng*`
    - Tìm logs lỗi: `tags:error_log OR tags:important`
 
 ### Trực quan hóa dữ liệu
@@ -385,8 +378,9 @@ Ngoài ra, truy cập Kibana qua trình duyệt: http://192.168.186.101:5601
 2. Chọn "Pie"
 3. Chọn index pattern `dockercoins-*`
 4. Thêm "Bucket" > "Split slices" > "Terms"
-5. Chọn field "app_type"
-6. Nhấn "Update"
+5. Chọn field "app_type" hoặc "image_name" (tùy thuộc vào trường nào có dữ liệu)
+6. Mở rộng khung thời gian tìm kiếm nếu cần
+7. Nhấn "Update"
 
 #### Biểu đồ số lượng logs theo thời gian
 
@@ -396,8 +390,9 @@ Ngoài ra, truy cập Kibana qua trình duyệt: http://192.168.186.101:5601
 4. Thêm "Bucket" > "X-axis" > "Date Histogram"
 5. Chọn field "@timestamp"
 6. Thêm "Bucket" > "Split series" > "Terms"
-7. Chọn field "app_type"
-8. Nhấn "Update"
+7. Chọn field "app_type" hoặc "image_name" (tùy thuộc vào trường nào có dữ liệu)
+8. Mở rộng khung thời gian tìm kiếm nếu cần
+9. Nhấn "Update"
 
 ### Tạo Dashboard
 
@@ -408,19 +403,61 @@ Ngoài ra, truy cập Kibana qua trình duyệt: http://192.168.186.101:5601
 
 ## Xử lý sự cố thường gặp
 
-### 1. Logstash không nhận được logs
+### 1. Không thấy kết quả trong Kibana khi tìm kiếm
+
+**Nguyên nhân có thể:**
+- Khung thời gian tìm kiếm quá nhỏ (mặc định chỉ 15 phút)
+- Trường tìm kiếm không tồn tại trong dữ liệu
+- Filter trong Logstash không gán đúng giá trị cho các trường
+
+**Giải pháp:**
+1. **Mở rộng khung thời gian tìm kiếm**:
+   - Chọn "Last 24 hours", "Last 7 days", hoặc "Last 30 days" thay vì mặc định 15 phút
+   - Hoặc sử dụng "Absolute" để chọn khoảng thời gian cụ thể (ví dụ: từ 1 tuần trước)
+
+2. **Thử tìm kiếm với các truy vấn khác**:
+   - Thay vì `app_type:worker`, hãy thử `*worker*` (tìm worker ở bất kỳ trường nào)
+   - Thử tìm theo trường `image_name` hoặc `container_name`: `image_name:*worker*`
+   - Sử dụng truy vấn KQL thay vì Lucene: `message : *worker*`
+
+3. **Kiểm tra các trường có sẵn trong dữ liệu**:
+   - Trong Discover, mở rộng một document bất kỳ để xem các trường thực tế
+   - Xem danh sách trường ở sidebar bên trái trong tab Discover
+   - Tìm kiếm theo các trường có sẵn
+
+4. **Cập nhật cấu hình Logstash và buộc cập nhật service**:
+   ```bash
+   sudo nano ~/elk-stack/logstash.conf
+   # Chỉnh sửa file theo hướng dẫn
+   docker service update --force elk_logstash
+   ```
+
+5. **Tạo lại index pattern trong Kibana**:
+   - Đi đến Stack Management > Data Views
+   - Nhấp "Create data view"
+   - Nhập pattern `dockercoins-*`, chọn trường thời gian `@timestamp`
+
+### 2. Logstash không nhận được logs
 
 **Nguyên nhân có thể:**
 - Port 12201/udp không được mở
 - Log driver không đúng
 - Network không đúng
+- Địa chỉ IP không chính xác
 
 **Giải pháp:**
 - Kiểm tra port: `docker service inspect elk_logstash --format "{{.Endpoint.Ports}}"`
 - Kiểm tra log driver: `docker service inspect redis --pretty | grep LogDriver`
 - Kiểm tra networks: `docker service inspect redis --format "{{.Spec.TaskTemplate.Networks}}"`
+- Kiểm tra và cập nhật lại địa chỉ IP đúng:
+  ```bash
+  IP_ADDRESS=$(hostname -I | awk '{print $1}')
+  echo "Cập nhật log driver với địa chỉ: $IP_ADDRESS"
+  docker service update --log-driver gelf --log-opt gelf-address=udp://$IP_ADDRESS:12201 redis
+  # Tương tự cho các service khác
+  ```
 
-### 2. Elasticsearch không khởi động
+### 3. Elasticsearch không khởi động
 
 **Nguyên nhân có thể:**
 - Thiếu bộ nhớ
@@ -430,7 +467,7 @@ Ngoài ra, truy cập Kibana qua trình duyệt: http://192.168.186.101:5601
 - Kiểm tra logs: `docker service logs elk_elasticsearch`
 - Tăng giới hạn bộ nhớ: Chỉnh sửa `ES_JAVA_OPTS=-Xms512m -Xmx512m`
 
-### 3. Kibana không kết nối được với Elasticsearch
+### 4. Kibana không kết nối được với Elasticsearch
 
 **Nguyên nhân có thể:**
 - Elasticsearch chưa khởi động

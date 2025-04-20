@@ -158,8 +158,13 @@ Mở trình duyệt và truy cập URL: `http://192.168.186.101:5601`
 
 1. Đi đến "Discover" tab
 2. Chọn index pattern `dockercoins-*`
-3. Sử dụng các truy vấn:
-   - Tìm logs từ worker: `app_type:worker`
+3. **Mở rộng khung thời gian tìm kiếm**:
+   - Ở góc trên bên phải, nhấp vào bộ chọn thời gian (thường hiển thị "Last 15 minutes")
+   - Chọn khoảng thời gian lớn hơn, ví dụ: "Last 24 hours" hoặc "Last 7 days"
+   - Nhấp "Apply" để áp dụng thay đổi
+
+4. Sử dụng các truy vấn:
+   - Tìm logs từ worker: `app_type:worker` hoặc `*worker*` hoặc `image_name:*worker*` hoặc `container_name:*worker*`
    - Tìm logs lỗi: `tags:error_log OR tags:important`
 
 ### 7.2. Tạo Visualizations
@@ -186,10 +191,15 @@ docker service ls | grep elk_logstash
 ### 8.2. Yêu cầu 2: Logstash đọc logs từ 4 services
 
 Kiểm tra trong Discover của Kibana bằng cách tìm kiếm:
-- `app_type:worker`
-- `app_type:webui`
-- `app_type:hasher`
-- `app_type:rng`
+- `app_type:worker` hoặc `image_name:*worker*` hoặc `container_name:*worker*`
+- `app_type:webui` hoặc `image_name:*webui*` hoặc `container_name:*webui*`
+- `app_type:hasher` hoặc `image_name:*hasher*` hoặc `container_name:*hasher*`
+- `app_type:rng` hoặc `image_name:*rng*` hoặc `container_name:*rng*`
+
+Lưu ý: Nếu không thấy kết quả, hãy thử tìm với:
+- Mở rộng khung thời gian (ít nhất 15 giờ)
+- Sử dụng truy vấn tổng quát như `*worker*` thay vì truy vấn trường cụ thể
+- Kiểm tra trường có sẵn trong sidebar của Discover và tìm theo trường có chứa thông tin về service
 
 ### 8.3 đến 8.8: Kiểm tra các yêu cầu còn lại
 
@@ -197,4 +207,23 @@ Xem chi tiết trong tài liệu "ELK-Stack-Requirements-Document.md"
 
 ## Xử lý sự cố nếu có
 
-Chi tiết về xử lý sự cố, xem tài liệu "ELK-Stack-Requirements-Document.md" phần cuối. 
+### Vấn đề 1: Không thấy kết quả trong Kibana khi tìm theo app_type
+
+**Nguyên nhân có thể:**
+- Khung thời gian tìm kiếm quá nhỏ
+- Field app_type không được tạo đúng trong filter Logstash
+- Dữ liệu cũ chưa có trường app_type
+
+**Giải pháp:**
+1. Mở rộng khung thời gian tìm kiếm (chọn Last 24 hours hoặc Last 7 days)
+2. Thử tìm theo các trường khác: `*worker*`, `image_name:*worker*`, `container_name:*worker*`
+3. Cập nhật file logstash.conf và buộc cập nhật service:
+   ```bash
+   sudo nano ~/elk-stack/logstash.conf
+   # Chỉnh sửa file theo hướng dẫn
+   docker service update --force elk_logstash
+   ```
+
+### Vấn đề 2: Vấn đề khác
+
+Chi tiết về xử lý sự cố khác, xem tài liệu "ELK-Stack-Requirements-Document.md" phần cuối. 
