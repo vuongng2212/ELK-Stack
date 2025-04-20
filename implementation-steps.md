@@ -75,18 +75,56 @@ elk_stack_logstash  docker.elastic.co/logstash/logstash:8.17.4   vps0           
 #### Tạo logs từ các service:
 
 ```bash
-# Khởi động lại các service để tạo logs
-docker service scale elk_stack_rng=0 && docker service scale elk_stack_rng=1
-docker service scale elk_stack_hasher=0 && docker service scale elk_stack_hasher=1
-docker service scale elk_stack_worker=0 && docker service scale elk_stack_worker=1
-docker service scale elk_stack_webui=0 && docker service scale elk_stack_webui=1
+# Scale các services theo yêu cầu đề bài
+docker service scale worker=15
+docker service scale rng=10
+docker service scale hasher=10
+docker service scale webui=5
+docker service scale redis=2
 ```
 
 #### Kiểm tra logs trong Logstash:
 
 ```bash
 # Kiểm tra logs của các service
-docker service logs elk_stack_logstash | grep -E "rng|hasher|worker|webui"
+sudo docker service logs elk_stack_logstash | grep -E "rng|hasher|worker|webui"
+```
+
+Nếu không có logs hiển thị, có thể vì các lý do sau:
+1. Filebeat chưa thu thập được logs từ các service
+2. Các service chưa tạo logs đủ để xử lý
+3. Logstash chưa nhận được logs từ Filebeat
+
+Thực hiện các bước sau để khắc phục:
+
+```bash
+# Kiểm tra Filebeat có đang chạy không
+sudo docker service ps elk_stack_filebeat
+
+# Kiểm tra logs của Filebeat
+sudo docker service logs elk_stack_filebeat
+
+# Tạo thêm logs bằng cách tương tác với các service, ví dụ:
+# - Truy cập UI thông qua trình duyệt
+# - Gửi requests tới các endpoints
+curl http://<IP_máy_ảo>:8080  # Truy cập webui
+
+# Sau đó kiểm tra logs trong Elasticsearch:
+curl -X GET "http://192.168.186.101:9200/logs-*/_search?pretty" -H 'Content-Type: application/json' -d'
+{
+  "query": {
+    "bool": {
+      "should": [
+        {"term": {"service_name": "rng"}},
+        {"term": {"service_name": "hasher"}},
+        {"term": {"service_name": "worker"}},
+        {"term": {"service_name": "webui"}}
+      ]
+    }
+  },
+  "size": 10,
+  "sort": [{"@timestamp": {"order": "desc"}}]
+}'
 ```
 
 ### Yêu cầu 3: Logstash xử lý dữ liệu log theo filter
@@ -325,3 +363,37 @@ filebeat:
    ```bash
    docker service logs elk_stack_kibana
    ``` 
+
+### Kibana bị lỗi "JavaScript heap out of memory"
+
+Lỗi này xảy ra khi Kibana hết bộ nhớ JavaScript. Để khắc phục:
+
+1. Tăng giới hạn bộ nhớ heap Node.js và bộ nhớ tổng thể cho Kibana trong `docker-stack.yml`:
+   ```yaml
+   kibana:
+     environment:
+       - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+       - "NODE_OPTIONS=--max-old-space-size=512" # Tăng bộ nhớ heap Node.js
+       # Thêm các key mã hóa cố định để tránh tạo mới mỗi lần khởi động
+       - "XPACK_ENCRYPTEDLOGGING_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+       - "XPACK_SECURITY_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+       - "XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+       - "XPACK_REPORTING_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+     # ... các cấu hình khác ...
+     deploy:
+       resources:
+         limits:
+           memory: 512m  # Tăng giới hạn bộ nhớ container
+   ```
+
+2. Triển khai lại stack:
+   ```bash
+   sudo docker stack deploy -c docker-stack.yml elk_stack
+   ```
+
+3. Sau khi cập nhật, kiểm tra trạng thái Kibana:
+   ```bash
+   sudo docker service ps elk_stack_kibana
+   ```
+
+4. Truy cập Kibana tại: `http://192.168.186.101:5601` 

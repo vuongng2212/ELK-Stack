@@ -28,6 +28,11 @@ services:
     image: docker.elastic.co/kibana/kibana:8.17.4
     environment:
       - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
+      - "NODE_OPTIONS=--max-old-space-size=512"
+      - "XPACK_ENCRYPTEDLOGGING_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+      - "XPACK_SECURITY_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+      - "XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
+      - "XPACK_REPORTING_ENCRYPTIONKEY=qwertyuiopasdfghjklzxcvbnm123456"
     ports:
       - "5601:5601"
     networks:
@@ -40,7 +45,7 @@ services:
           - node.hostname == vps0
       resources:
         limits:
-          memory: 256m
+          memory: 512m
       restart_policy:
         condition: on-failure
         delay: 5s
